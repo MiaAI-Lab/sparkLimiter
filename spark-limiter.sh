@@ -170,7 +170,7 @@ probe_one() { # target index
   out=$($TO ssh -o BatchMode=yes -o ConnectTimeout=3 -o ServerAliveInterval=2 -o ServerAliveCountMax=1 \
             -o LogLevel=ERROR -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
             -o ForwardAgent=no -o ForwardX11=no -o ClearAllForwardings=yes \
-            -- "$1" "$PROBE" 2>"$TMP/$2.err" | grep -m1 '^SPARK [^ ]* [^ ]*$')
+            -- "$1" "$PROBE" 2>"$TMP/$2.err" | grep -m1 -E '^SPARK [A-Za-z0-9._-]+ [A-Za-z0-9._-]+$')
   rc=$?
   if [ -n "$out" ]; then printf '%s\t%s\n' "$1" "$out" > "$TMP/$2.res"
   elif grep -q 'Permission denied' "$TMP/$2.err" 2>/dev/null; then : > "$TMP/$2.denied"
