@@ -88,7 +88,7 @@ EOF
 TO=""; command -v timeout >/dev/null 2>&1 && TO="timeout 20"
 CANDS=()
 PROBED=" "
-FOUND_T=(); FOUND_N=(); SEEN_IDS=" "
+FOUND_T=(); FOUND_N=(); FOUND_IDS=(); SEEN_IDS=" "
 DENIED=0
 
 # add_cand NAME [raw]  -- "raw" names (IPs, mDNS) get --user prepended
@@ -118,6 +118,12 @@ is_lan_name() {
 }
 
 unicast_only() { grep -Ev '^(22[4-9]|23[0-9])\.|\.255$'; }
+
+is_addr() { # bare IPv4/IPv6 target (optionally user@), not a host name
+  local h="${1##*@}"
+  [[ "$h" =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}$ ]] && return 0
+  [[ "$h" == *:* ]]
+}
 
 src_ssh_config() {
   [ -r "$HOME/.ssh/config" ] || return
@@ -180,7 +186,7 @@ probe_one() { # target index
 
 PROBE_N=0
 run_probes() {
-  local t running=0 start=$PROBE_N i line id name
+  local t running=0 start=$PROBE_N i j line id name cand
   [ ${#CANDS[@]} -eq 0 ] && return
   for t in "${CANDS[@]}"; do
     probe_one "$t" "$PROBE_N" &
@@ -195,9 +201,22 @@ run_probes() {
     line=$(cat "$TMP/$i.res")
     name=$(printf '%s' "$line" | awk '{print $4}')
     id="$(printf '%s' "$line" | awk '{print $3}'):$name"
-    case "$SEEN_IDS" in *" $id "*) continue ;; esac
+    cand=$(printf '%s' "$line" | cut -f1)
+    case "$SEEN_IDS" in
+      *" $id "*)
+        # Same Spark via another candidate. Prefer a host name over a bare
+        # address: the name carries the ssh config (user/key) and is readable.
+        if ! is_addr "$cand"; then
+          for ((j = 0; j < ${#FOUND_IDS[@]}; j++)); do
+            [ "${FOUND_IDS[j]}" = "$id" ] || continue
+            is_addr "${FOUND_T[j]}" && FOUND_T[j]=$cand
+            break
+          done
+        fi
+        continue ;;
+    esac
     SEEN_IDS="$SEEN_IDS$id "
-    FOUND_T+=("$(printf '%s' "$line" | cut -f1)"); FOUND_N+=("$name")
+    FOUND_T+=("$cand"); FOUND_N+=("$name"); FOUND_IDS+=("$id")
   done
 }
 
@@ -209,7 +228,7 @@ probe_local() { # is this machine itself a Spark?
   id="$(printf '%s' "$me" | awk '{print $2}'):$name"
   case "$SEEN_IDS" in *" $id "*) return ;; esac
   SEEN_IDS="$SEEN_IDS$id "
-  FOUND_T+=("localhost"); FOUND_N+=("$name")
+  FOUND_T+=("localhost"); FOUND_N+=("$name"); FOUND_IDS+=("$id")
 }
 
 discover() {

@@ -37,7 +37,7 @@ Press Enter to apply to all, pick a subset by number, add hosts by hand, or quit
 
 ## Discovery
 
-Candidates are gathered from several places, then each is probed over key-based `ssh` (read-only, no changes). Only hosts that report a GB10 GPU / DGX Spark product name count as Sparks, and duplicates (the same Spark via alias, IP and `.local`) are merged by machine-id.
+Candidates are gathered from several places, then each is probed over key-based `ssh` (read-only, no changes). Only hosts that report a GB10 GPU / DGX Spark product name count as Sparks, and duplicates (the same Spark via alias, IP and `.local`) are merged by machine-id. When several candidates reach the same Spark, a working host name is listed instead of a bare address.
 
 1. This machine, if it is itself a Spark (listed as `localhost`)
 2. Hosts in `~/.ssh/config`
